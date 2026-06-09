@@ -6,9 +6,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import yaml from "js-yaml";
-import type { LLMModel } from "./llmUtils.js";
-import { callLlmModel } from "./llmUtils.js";
-import { updateLlmUsage, safeJsonLoads } from "./utils.js";
+import type { LLMModel } from "./llmUtils.ts";
+import { callLlmModel } from "./llmUtils.ts";
+import { updateLlmUsage, safeJsonLoads } from "./utils.ts";
 
 const PROMPT_LIB_DIR = path.resolve(
   path.dirname(new URL(import.meta.url).pathname),

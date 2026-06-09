@@ -7,21 +7,21 @@
  */
 
 import { Annotation, StateGraph, END } from "@langchain/langgraph";
-import type { LLMModel } from "./llmUtils.js";
-import type { KnowledgeGraph, EvidenceNode, Chain } from "./dataModel.js";
-import { makeKnowledgeGraph, addEvidenceNode } from "./dataModel.js";
-import * as outlineModule from "./outlineModule.js";
-import * as knowledgeGraphModule from "./knowledgeGraphModule.js";
-import * as searchModule from "./searchModule.js";
-import * as writeModule from "./writeModule.js";
-import { judgeTerminalByOutline } from "./terminalModule.js";
+import type { LLMModel } from "./llmUtils.ts";
+import type { KnowledgeGraph, EvidenceNode, Chain } from "./dataModel.ts";
+import { makeKnowledgeGraph, addEvidenceNode } from "./dataModel.ts";
+import * as outlineModule from "./outlineModule.ts";
+import * as knowledgeGraphModule from "./knowledgeGraphModule.ts";
+import * as searchModule from "./searchModule.ts";
+import * as writeModule from "./writeModule.ts";
+import { judgeTerminalByOutline } from "./terminalModule.ts";
 import {
   clearUsageDataIfExists,
   updateActionElapsedTime,
   updateElapsedTime,
   dedupPreserveOrder,
   atomicWriteText,
-} from "./utils.js";
+} from "./utils.ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -37,35 +37,35 @@ export interface RunConfig {
 
 const ResearchState = Annotation.Root({
   // Input parameters (set once)
-  reportId: Annotation<number>,
-  rootQuery: Annotation<string>,
-  reportDir: Annotation<string>,
-  productDir: Annotation<string>,
-  language: Annotation<string>,
-  usageFile: Annotation<string>,
-  maxIter: Annotation<number>,
-  disableEarlyStopping: Annotation<boolean>,
-  blockedUrls: Annotation<string[]>,
-  cfg: Annotation<RunConfig>,
+  reportId: Annotation<number>(),
+  rootQuery: Annotation<string>(),
+  reportDir: Annotation<string>(),
+  productDir: Annotation<string>(),
+  language: Annotation<string>(),
+  usageFile: Annotation<string>(),
+  maxIter: Annotation<number>(),
+  disableEarlyStopping: Annotation<boolean>(),
+  blockedUrls: Annotation<string[]>(),
+  cfg: Annotation<RunConfig>(),
 
   // LLM model name (we reconstruct model per invocation for serializability)
-  llmModelName: Annotation<string>,
+  llmModelName: Annotation<string>(),
 
   // Mutable research state
-  outline: Annotation<string>,
-  knowledgeGraphJson: Annotation<string>, // JSON-serialized KnowledgeGraph
-  historySearchQueries: Annotation<string[]>,
-  visitedUrls: Annotation<string[]>,
-  searchQueries: Annotation<string[]>, // queries for next iteration
-  visitedEdges: Annotation<string[]>, // edge keys "src-tgt"
-  iterationIndex: Annotation<number>,
-  isTerminal: Annotation<boolean>,
-  startTime: Annotation<number>,
+  outline: Annotation<string>(),
+  knowledgeGraphJson: Annotation<string>(), // JSON-serialized KnowledgeGraph
+  historySearchQueries: Annotation<string[]>(),
+  visitedUrls: Annotation<string[]>(),
+  searchQueries: Annotation<string[]>(), // queries for next iteration
+  visitedEdges: Annotation<string[]>(), // edge keys "src-tgt"
+  iterationIndex: Annotation<number>(),
+  isTerminal: Annotation<boolean>(),
+  startTime: Annotation<number>(),
 
   // Output
-  report: Annotation<string>,
-  success: Annotation<boolean>,
-  error: Annotation<string>,
+  report: Annotation<string>(),
+  success: Annotation<boolean>(),
+  error: Annotation<string>(),
 });
 
 type ResearchStateType = typeof ResearchState.State;

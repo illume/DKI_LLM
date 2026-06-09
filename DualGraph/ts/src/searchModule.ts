@@ -6,14 +6,14 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import yaml from "js-yaml";
-import type { LLMModel } from "./llmUtils.js";
-import { callLlmModel } from "./llmUtils.js";
+import type { LLMModel } from "./llmUtils.ts";
+import { callLlmModel } from "./llmUtils.ts";
 import {
   safeJsonLoads,
   updateFilterStats,
   updateLlmUsage,
   updateReadpageStats,
-} from "./utils.js";
+} from "./utils.ts";
 
 const PROMPT_LIB_DIR = path.resolve(
   path.dirname(new URL(import.meta.url).pathname),
@@ -114,6 +114,7 @@ export async function _searchBing(
   query: string,
   numResults: number = 5,
   visitedUrls: Set<string> = new Set(),
+  options?: { language?: string; country?: string; safeSearch?: boolean },
 ): Promise<SearchResponse> {
   const appId = process.env.BING_APP_ID;
   const endpoint = process.env.BING_ENDPOINT;
@@ -121,9 +122,15 @@ export async function _searchBing(
     throw new Error("BING_APP_ID and BING_ENDPOINT must be configured");
   }
 
+  const lang = options?.language ?? "en";
+  const country = (options?.country ?? "us").toUpperCase();
+  const safeSearch = options?.safeSearch ?? true;
+
   const params = new URLSearchParams({
     q: query,
-    count: String(Math.min(Math.max(numResults * 2, numResults), 20)),
+    count: "20",
+    mkt: `${lang}-${country}`,
+    safeSearch: safeSearch ? "Strict" : "Off",
     appid: appId,
   });
 
@@ -426,8 +433,9 @@ export async function searchWithFilteringVisitedUrls(
   searchProvider: "bing" | "serper" = "serper",
 ): Promise<SearchEvidence[]> {
   const locale = normalizeLanguage(language);
-  const provider = searchProvider === "bing" ? _searchBing : _searchSerper;
-  const searchResponse = await provider(query, 5, visitedUrls);
+  const searchResponse = searchProvider === "bing"
+    ? await _searchBing(query, 5, visitedUrls, { language: locale.language, country: locale.country })
+    : await _searchSerper(query, 5, visitedUrls);
   const initialResults = searchResponse.results;
 
   const selectedResults = (await selectUrlsToVisit(

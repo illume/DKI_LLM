@@ -6,7 +6,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { jsonrepair } from "jsonrepair";
-import type { ModelResponse } from "./llmUtils.js";
+import type { ModelResponse } from "./llmUtils.ts";
 
 // ─── Usage tracking ──────────────────────────────────────────────────────────
 
@@ -165,8 +165,28 @@ export function updateReadpageStats(
 // ─── JSON repair ─────────────────────────────────────────────────────────────
 
 export function safeJsonLoads(text: string): unknown {
-  // Remove markdown code fences
-  let cleaned = text.replace(/^```json\s*/m, "").replace(/\s*```$/m, "").trim();
+  // Step 1: Remove markdown code fences (```json ... ``` or ``` ... ```)
+  const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  let cleaned = codeBlockMatch ? codeBlockMatch[1] : text.trim();
+
+  // Step 2: Extract JSON substring between first {/[ and last }/]
+  const startCurly = cleaned.indexOf("{");
+  const startBracket = cleaned.indexOf("[");
+  let startPos = -1;
+  if (startCurly !== -1 && (startBracket === -1 || startCurly < startBracket)) {
+    startPos = startCurly;
+  } else if (startBracket !== -1) {
+    startPos = startBracket;
+  }
+
+  const endCurly = cleaned.lastIndexOf("}");
+  const endBracket = cleaned.lastIndexOf("]");
+  const endPos = Math.max(endCurly, endBracket);
+
+  if (startPos !== -1 && endPos !== -1 && endPos > startPos) {
+    cleaned = cleaned.slice(startPos, endPos + 1);
+  }
+
   try {
     return JSON.parse(cleaned);
   } catch {

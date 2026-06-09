@@ -8,8 +8,8 @@ import {
   getKnowledgeNodeById,
   getKnowledgeEdgeById,
   getEvidenceNodeById,
-} from "../dataModel.js";
-import { dedupPreserveOrder, safeJsonLoads } from "../utils.js";
+} from "../dataModel.ts";
+import { dedupPreserveOrder, safeJsonLoads } from "../utils.ts";
 
 describe("dataModel", () => {
   it("creates an empty KnowledgeGraph", () => {

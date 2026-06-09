@@ -8,8 +8,8 @@ import { Command } from "commander";
 import * as dotenv from "dotenv";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { AgentConfig, getLlmModel } from "./llmUtils.js";
-import { processReport, type RunConfig } from "./graph.js";
+import { AgentConfig, getLlmModel } from "./llmUtils.ts";
+import { processReport, type RunConfig } from "./graph.ts";
 
 // ─── Env helpers ─────────────────────────────────────────────────────────────
 

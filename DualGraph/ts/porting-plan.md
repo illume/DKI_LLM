@@ -147,7 +147,7 @@ invocation.
 1. Create `DualGraph/ts/` with `package.json`, `tsconfig.json`.
 2. Install dependencies (see Dependencies section below).
 3. Copy `prompt_lib/*.yaml` into `src/prompt_lib/`.
-4. Add `node_modules/` and `dist/` to `.gitignore`.
+4. Add `node_modules/` to `.gitignore`.
 
 ### Phase 2 — Core modules (unit-testable without LLM)
 5. `src/dataModel.ts` — interfaces, KG helpers, merge/cluster logic,
@@ -188,7 +188,7 @@ invocation.
 17. Unit tests for `writeModule` (reference dedup/renumber).
 18. Unit tests for `graph` (mock LLM, verify state transitions through
     the full init → iterate → write flow).
-19. Build verification (`npm run build` — zero tsc errors).
+19. Type check verification (`npm run typecheck` — zero tsc errors).
 20. Integration smoke test (requires `.env` with API keys; run the example
     dataset and compare output against the Python baseline).
 
@@ -275,7 +275,7 @@ transitively by `@langchain/openai`.
   - Write module: reference dedup/renumber.
   - Graph: mock `LLMModel` that returns canned responses → verify full
     init → iterate → write state transitions.
-- **Build test**: `tsc` compiles with zero errors.
+- **Type check**: `tsc --noEmit` passes with zero errors. No build step required — Node runs TypeScript directly.
 - **Integration / benchmark** (requires `.env` with API keys):
   - Run the `example` dataset through both Python and TS.
   - Compare: (a) token usage, (b) number of iterations, (c) output report

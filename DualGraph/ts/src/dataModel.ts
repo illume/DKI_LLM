@@ -127,7 +127,7 @@ export interface KnowledgeGraph {
   merged_knowledge_nodes: MergedKnowledgeNode[];
   semantic_clusters: SemanticCluster[];
   community_list: CommunityInfo[];
-  embedding_cache: Map<string, number[]>;
+  embedding_cache: Record<string, number[]>;
   last_evidence_id: number;
   last_knowledge_node_id: number;
   last_knowledge_edge_id: number;
@@ -141,7 +141,7 @@ export function makeKnowledgeGraph(): KnowledgeGraph {
     merged_knowledge_nodes: [],
     semantic_clusters: [],
     community_list: [],
-    embedding_cache: new Map(),
+    embedding_cache: {},
     last_evidence_id: 0,
     last_knowledge_node_id: 0,
     last_knowledge_edge_id: 0,
