@@ -10,11 +10,12 @@ web UI (`app.py`) is **not** ported (per issue: "I don't think the ui is necessa
 
 1. **Benchmark parity** — the issue says "benchmarks should run and be not
    too far off."  This means we must keep the KG-driven chain generation
-   logic that is DualGraph's core innovation, including community detection
-   and SBM-based chain scoring.  Where Python uses `igraph` + `leidenalg`
-   we substitute `graphology` + `graphology-communities-louvain` (Louvain
-   is algorithmically close to Leiden).  Cosine similarity for
-   entity-concept scoring is trivial to implement without numpy.
+   logic that is DualGraph's core innovation.  Community detection
+   (Python uses `igraph` + `leidenalg`) and SBM-based chain scoring are
+   **stretch goals** — there is no mature JS equivalent of HDBSCAN/Leiden,
+   and the Python codebase already makes them optional via env vars.
+   Cosine similarity for entity-concept scoring is trivial to implement
+   without numpy.
 2. **LangChain for LLM calls, LangGraph for orchestration** — LLM calls go through
    `@langchain/openai` (`ChatOpenAI` for chat, `OpenAIEmbeddings` for embeddings),
    preserving the same prompts and retry logic.  LangGraph is used

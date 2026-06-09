@@ -5,13 +5,14 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
 import type { LLMModel } from "./llmUtils.ts";
 import { callLlmModel } from "./llmUtils.ts";
 import { updateLlmUsage, safeJsonLoads } from "./utils.ts";
 
 const PROMPT_LIB_DIR = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
+  path.dirname(fileURLToPath(import.meta.url)),
   "prompt_lib",
 );
 
@@ -74,11 +75,11 @@ const PASS_THRESHOLDS_LOW: Record<string, number> = {
 };
 
 function repairJson(text: string): unknown {
-  let cleaned = text
-    .replace(/^```json\s*/m, "")
-    .replace(/\s*```$/m, "")
-    .trim();
-  return JSON.parse(cleaned);
+  const parsed = safeJsonLoads(text);
+  if (parsed == null) {
+    throw new SyntaxError("Failed to parse JSON from LLM response");
+  }
+  return parsed;
 }
 
 // ─── judgeTerminalByOutline ──────────────────────────────────────────────────

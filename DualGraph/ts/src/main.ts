@@ -8,13 +8,14 @@ import { Command } from "commander";
 import * as dotenv from "dotenv";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { AgentConfig, getLlmModel } from "./llmUtils.ts";
 import { processReport, type RunConfig } from "./graph.ts";
 
 // ─── Env helpers ─────────────────────────────────────────────────────────────
 
 const BASE = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
+  path.dirname(fileURLToPath(import.meta.url)),
   "..",
   "..",
   "deepresearch",

@@ -5,6 +5,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
 import type { Chain, EvidenceNode, KnowledgeGraph } from "./dataModel.ts";
 import {
@@ -18,7 +19,7 @@ import { callLlmModel } from "./llmUtils.ts";
 import { safeJsonLoads, updateLlmUsage } from "./utils.ts";
 
 const PROMPT_LIB_DIR = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
+  path.dirname(fileURLToPath(import.meta.url)),
   "prompt_lib",
 );
 

@@ -5,6 +5,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import yaml from "js-yaml";
 import type { EvidenceNode, KnowledgeGraph } from "./dataModel.ts";
 import {
@@ -16,7 +17,7 @@ import { callLlmModel } from "./llmUtils.ts";
 import { updateLlmUsage } from "./utils.ts";
 
 const PROMPT_LIB_DIR = path.resolve(
-  path.dirname(new URL(import.meta.url).pathname),
+  path.dirname(fileURLToPath(import.meta.url)),
   "prompt_lib",
 );
 
@@ -157,7 +158,7 @@ export function dedupAndRenumber(reportText: string, language: string): string {
         .filter((value) => Number.isFinite(value) && oldToNew.has(value))
         .map((value) => oldToNew.get(value) as number),
     )].sort((a, b) => a - b);
-    return newNums.length > 0 ? `[${newNums.join(", ")}]` : "";
+    return newNums.length > 0 ? `[${newNums.join(", ")}]` : _match;
   });
 
   const referencesHeader = ["en", "english"].includes(language.toLowerCase())
