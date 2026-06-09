@@ -1,9 +1,32 @@
 /**
- * LLM utilities – wraps OpenAI-compatible API calls with retry logic.
+ * LLM utilities – wraps LLM calls via LangChain with retry logic.
  * TypeScript port of llm_utils.py
  */
 
-import OpenAI from "openai";
+import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
+import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
+import type { BaseMessage } from "@langchain/core/messages";
+
+// ─── ChatMessage ─────────────────────────────────────────────────────────────
+// Simple message type used by consumer modules (replaces OpenAI's type).
+
+export interface ChatMessage {
+  role: "system" | "user" | "assistant";
+  content: string;
+}
+
+function toLangChainMessages(messages: ChatMessage[]): BaseMessage[] {
+  return messages.map((m) => {
+    switch (m.role) {
+      case "system":
+        return new SystemMessage(m.content);
+      case "user":
+        return new HumanMessage(m.content);
+      case "assistant":
+        return new AIMessage(m.content);
+    }
+  });
+}
 
 // ─── ModelResponse ───────────────────────────────────────────────────────────
 
@@ -27,19 +50,6 @@ function makeModelResponse(partial?: Partial<ModelResponse>): ModelResponse {
     },
     _call_elapsed_time: partial?._call_elapsed_time ?? 0,
   };
-}
-
-function fromOpenAIResponse(response: OpenAI.Chat.ChatCompletion): ModelResponse {
-  const message = response.choices[0]?.message;
-  const usage = response.usage;
-  return makeModelResponse({
-    content: message?.content ?? "",
-    usage: {
-      prompt_tokens: usage?.prompt_tokens ?? 0,
-      completion_tokens: usage?.completion_tokens ?? 0,
-      total_tokens: usage?.total_tokens ?? 0,
-    },
-  });
 }
 
 // ─── AgentConfig ─────────────────────────────────────────────────────────────
@@ -71,16 +81,16 @@ export function makeAgentConfig(
 // ─── LLMModel ────────────────────────────────────────────────────────────────
 
 export class LLMModel {
-  client: OpenAI;
+  chatModel: ChatOpenAI;
   modelName: string;
 
-  constructor(client: OpenAI, modelName: string) {
-    this.client = client;
+  constructor(chatModel: ChatOpenAI, modelName: string) {
+    this.chatModel = chatModel;
     this.modelName = modelName;
   }
 
   async completion(
-    messages: OpenAI.Chat.ChatCompletionMessageParam[],
+    messages: ChatMessage[],
     options?: {
       temperature?: number;
       max_tokens?: number;
@@ -88,18 +98,37 @@ export class LLMModel {
       model_name?: string;
     },
   ): Promise<ModelResponse> {
-    const params: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
-      model: options?.model_name ?? this.modelName,
-      messages,
-    };
-    if (options?.temperature !== undefined)
-      params.temperature = options.temperature;
-    if (options?.max_tokens !== undefined)
-      params.max_tokens = options.max_tokens;
-    if (options?.stop !== undefined) params.stop = options.stop;
+    let model = this.chatModel;
 
-    const raw = await this.client.chat.completions.create(params);
-    return fromOpenAIResponse(raw);
+    // Apply per-call overrides via .bind()
+    const bindArgs: Record<string, unknown> = {};
+    if (options?.model_name) bindArgs.model = options.model_name;
+    if (options?.temperature !== undefined)
+      bindArgs.temperature = options.temperature;
+    if (options?.max_tokens !== undefined)
+      bindArgs.max_tokens = options.max_tokens;
+    if (options?.stop !== undefined) bindArgs.stop = options.stop;
+    if (Object.keys(bindArgs).length > 0) {
+      model = model.bind(bindArgs) as unknown as ChatOpenAI;
+    }
+
+    const langchainMessages = toLangChainMessages(messages);
+    const result = await model.invoke(langchainMessages);
+
+    const content =
+      typeof result.content === "string"
+        ? result.content
+        : JSON.stringify(result.content);
+
+    const tokenUsage = result.usage_metadata;
+    return makeModelResponse({
+      content,
+      usage: {
+        prompt_tokens: tokenUsage?.input_tokens ?? 0,
+        completion_tokens: tokenUsage?.output_tokens ?? 0,
+        total_tokens: tokenUsage?.total_tokens ?? 0,
+      },
+    });
   }
 }
 
@@ -120,29 +149,44 @@ export function getLlmModel(conf?: AgentConfig): LLMModel {
     process.env.OPENAI_ENDPOINT ??
     "https://api.openai.com/v1";
 
+  const modelName = c.llm_model_name ?? "";
+
   if (provider === "custom") {
     const resolvedKey = apiKey || process.env.LLM_API_KEY || "EMPTY";
     const resolvedUrl = c.llm_base_url || process.env.LLM_BASE_URL;
-    const clientOpts: ConstructorParameters<typeof OpenAI>[0] = {
-      apiKey: resolvedKey,
-      timeout: 180_000,
-    };
-    if (resolvedUrl) clientOpts.baseURL = resolvedUrl;
 
-    if (c.llm_extra_headers) {
-      clientOpts.defaultHeaders = c.llm_extra_headers;
+    const chatModelOpts: ConstructorParameters<typeof ChatOpenAI>[0] = {
+      openAIApiKey: resolvedKey,
+      modelName,
+      timeout: 180_000,
+      configuration: {},
+    };
+    if (resolvedUrl) {
+      chatModelOpts.configuration = {
+        ...chatModelOpts.configuration,
+        baseURL: resolvedUrl,
+      };
     }
-    const client = new OpenAI(clientOpts);
-    return new LLMModel(client, c.llm_model_name ?? "");
+    if (c.llm_extra_headers) {
+      chatModelOpts.configuration = {
+        ...chatModelOpts.configuration,
+        defaultHeaders: c.llm_extra_headers,
+      };
+    }
+    const chatModel = new ChatOpenAI(chatModelOpts);
+    return new LLMModel(chatModel, modelName);
   }
 
   // Default: generic OpenAI-compatible
-  const client = new OpenAI({
-    apiKey: apiKey || "EMPTY",
-    baseURL,
+  const chatModel = new ChatOpenAI({
+    openAIApiKey: apiKey || "EMPTY",
+    modelName,
     timeout: 180_000,
+    configuration: {
+      baseURL,
+    },
   });
-  return new LLMModel(client, c.llm_model_name ?? "");
+  return new LLMModel(chatModel, modelName);
 }
 
 // ─── callLlmModel (with retry) ──────────────────────────────────────────────
@@ -172,7 +216,7 @@ function sleep(ms: number): Promise<void> {
 
 export async function callLlmModel(
   llmModel: LLMModel,
-  messages: OpenAI.Chat.ChatCompletionMessageParam[],
+  messages: ChatMessage[],
   options?: {
     temperature?: number;
     max_tokens?: number;
@@ -243,25 +287,18 @@ export async function embedTexts(
     llm_api_key: process.env.LLM_API_KEY,
   });
 
-  const client = new OpenAI({
-    apiKey: c.llm_api_key ?? process.env.OPENAI_API_KEY ?? "EMPTY",
-    baseURL:
-      c.llm_base_url ??
-      process.env.OPENAI_ENDPOINT ??
-      "https://api.openai.com/v1",
+  const embeddings = new OpenAIEmbeddings({
+    openAIApiKey: c.llm_api_key ?? process.env.OPENAI_API_KEY ?? "EMPTY",
+    modelName: embeddingModel,
+    batchSize,
     timeout: 180_000,
+    configuration: {
+      baseURL:
+        c.llm_base_url ??
+        process.env.OPENAI_ENDPOINT ??
+        "https://api.openai.com/v1",
+    },
   });
 
-  const vectors: number[][] = [];
-  for (let i = 0; i < texts.length; i += batchSize) {
-    const chunk = texts.slice(i, i + batchSize);
-    const resp = await client.embeddings.create({
-      model: embeddingModel,
-      input: chunk,
-    });
-    for (const item of resp.data) {
-      vectors.push(item.embedding);
-    }
-  }
-  return vectors;
+  return embeddings.embedDocuments(texts);
 }

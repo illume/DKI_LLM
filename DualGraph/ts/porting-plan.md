@@ -15,10 +15,10 @@ web UI (`app.py`) is **not** ported (per issue: "I don't think the ui is necessa
    we substitute `graphology` + `graphology-communities-louvain` (Louvain
    is algorithmically close to Leiden).  Cosine similarity for
    entity-concept scoring is trivial to implement without numpy.
-2. **LangGraph for orchestration only** — LLM calls still go through the
-   raw `openai` SDK (for exact parity with the Python prompts and retry
-   logic).  `@langchain/openai` is **not** needed.  LangGraph is used
-   solely to model the init → iterate → terminate → write control flow.
+2. **LangChain for LLM calls, LangGraph for orchestration** — LLM calls go through
+   `@langchain/openai` (`ChatOpenAI` for chat, `OpenAIEmbeddings` for embeddings),
+   preserving the same prompts and retry logic.  LangGraph is used
+   to model the init → iterate → terminate → write control flow.
 3. **Minimal new dependencies** — only add packages that replace
    Python-only libraries.  Reuse the same YAML prompt templates verbatim.
 
@@ -27,7 +27,7 @@ web UI (`app.py`) is **not** ported (per issue: "I don't think the ui is necessa
 | Python source                         | TypeScript target            | Notes                                            |
 |---------------------------------------|------------------------------|--------------------------------------------------|
 | `data_model.py`                       | `src/dataModel.ts`           | Interfaces + pure helper functions               |
-| `llm_utils.py`                        | `src/llmUtils.ts`            | `openai` npm package; retry logic                 |
+| `llm_utils.py`                        | `src/llmUtils.ts`            | `@langchain/openai` (ChatOpenAI, OpenAIEmbeddings); retry logic |
 | `utils_module.py`                     | `src/utils.ts`               | Usage tracking, JSON repair, file helpers         |
 | `outline_module.py`                   | `src/outlineModule.ts`       | Create / update outline, generate search queries  |
 | `knowledge_graph_module.py`           | `src/knowledgeGraphModule.ts`| KG create/update, chain generation, community det.|
@@ -131,13 +131,14 @@ This keeps the graph state fully serializable.
 
 ### LLM integration approach
 
-LLM calls go through the raw `openai` SDK wrapper (`LLMModel` class in
-`llmUtils.ts`) — **not** through LangChain's `ChatOpenAI`.  This ensures:
+LLM calls go through `@langchain/openai`'s `ChatOpenAI` (wrapped in the
+`LLMModel` class in `llmUtils.ts`), with `OpenAIEmbeddings` for vector
+embeddings.  This ensures:
+- Full LangChain integration for both orchestration and LLM calls.
 - Identical prompt formatting and retry logic to the Python original.
-- No double abstraction layer.
 - Easy to compare token usage between Python and TS runs.
 
-LangGraph is only used for control flow (the `StateGraph`), not for LLM
+LangGraph is used for control flow (the `StateGraph`) and LangChain handles
 invocation.
 
 ## Step-by-step porting order
@@ -152,7 +153,7 @@ invocation.
 5. `src/dataModel.ts` — interfaces, KG helpers, merge/cluster logic,
    text/JSON serialization, serialization/deserialization helpers.
 6. `src/utils.ts` — usage tracking, JSON repair, file helpers, dedup.
-7. `src/llmUtils.ts` — OpenAI wrapper, retry with backoff, embeddings.
+7. `src/llmUtils.ts` — LangChain ChatOpenAI wrapper, retry with backoff, embeddings.
 
 ### Phase 3 — Domain modules
 8. `src/outlineModule.ts` — create/update outline, generate search queries.
@@ -239,13 +240,18 @@ invocation.
   "graphology-types": "^0.24.0",
   "js-yaml": "^4.1.0",
   "jsonrepair": "^3.12.0",
-  "openai": "^4.80.0",
+  "graphology": "^0.25.0",
+  "graphology-communities-louvain": "^2.0.0",
+  "graphology-types": "^0.24.0",
+  "js-yaml": "^4.1.0",
+  "jsonrepair": "^3.12.0",
   "zod": "^3.24.0"
 }
 ```
 
-Note: `@langchain/openai` is **intentionally excluded** — LLM calls use the
-raw `openai` SDK directly for exact parity with the Python implementation.
+Note: `@langchain/openai` provides both `ChatOpenAI` and `OpenAIEmbeddings`.
+The raw `openai` SDK is no longer a direct dependency — it is pulled in
+transitively by `@langchain/openai`.
 
 ## Risks and mitigations
 
